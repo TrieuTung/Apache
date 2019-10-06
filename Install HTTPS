@@ -1,0 +1,67 @@
+1. For Apache
+- Tạo chứng chỉ SSL bằng command sau:
+  #openssl genrsa -out domain.com.key 2048
+  #openssl req -new -key domain.com.key -out domain.com.csr
+  #openssl x509 -req -days 365 -in domain.com.csr -signkey domain.com.key -out domain.com.crt
+- Di chuyển các self-certificate vào đường dẫn /etc/ssl/certs và /etc/ssl/private
+- Kích hoạt https:
+  #sudo ufw delete allow 'Apache'
+  #sudo ufw allow 'Apache Full'
+- Cấu hình SSL vào file mặc định trong /etc/apache2/sites-avalable/defaule-ssl.conf hoặc tạo file mới theo domain (VD: domain-ssl.conf) rồi thêm và sửa như sau:
+  ServerName www.domain.com
+  DocumentRoot “var/www/html”
+  
+  SSLEngine on
+  SSLProtocol all
+  
+  SSLCertificateFile      /etc/ssl/certs/domain.com.crt
+  SSLCertificateKeyFile   /etc/ssl/private/domain.com.key
+- Kích hoạt ssl và file conf bằng comand sau:
+  #sudo a2enmod ssl
+  #sudo a2enmod header
+  #sudo a2ensite default-ssl.conf
+- Kiểm tra cấu hình file
+  #sudo apache2ctl configtest
+- Chỉnh sửa file /etc/apache2/sites-available/000-default.conf (Hoặc file tự tạo - vd: domain.com.conf) bằng cách Redirect từ http sang https bằng cách thêm dòng sau:
+  ....
+  Redirect "/" "https://your_domain_or_IP/"
+  ....
+- sau đó truy cập theo đường dẫn: “https://www.domain.com”
+
+2. For Nginx
+- Tạo chứng chỉ SSL bằng command sau:
+  #openssl genrsa -out domain.com.key 2048
+  #openssl req -new -key domain.com.key -out domain.com.csr
+  #openssl x509 -req -days 365 -in domain.com.csr -signkey domain.com.key -out domain.com.crt
+- Di chuyển các self-certificate vào đường dẫn /etc/ssl/certs và /etc/ssl/private
+- Sau đó tạo hoặc chỉnh sửa file ở đường dẫn /etc/nginx/conf.d và sửa file như sau:
+  server {
+      listen 80;
+      return 301 https://$host$request_uri;
+  }
+  server {
+      listen       443;
+      server_name  chimrio.com;
+
+      ssl_certificate          /etc/nginx/chimrio.com.crt;
+      ssl_certificate_key      /etc/nginx/chimrio.com.key;
+
+      ssl on;
+      ssl_session_cache  builtin:1000  shared:SSL:10m;
+      ssl_protocols  TLSv1 TLSv1.1 TLSv1.2;
+      ssl_ciphers HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4;
+      ssl_prefer_server_ciphers on;
+      ....
+      location / {
+	  ....
+	  proxy_set_header        Host $host;
+          proxy_set_header        X-Real-IP $remote_addr;
+          proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header        X-Forwarded-Proto $scheme;
+
+          proxy_pass http://chimrio.com:8080;
+          proxy_read_timeout 60;
+      }
+      ....
+  }
+- sau đó truy cập theo đường dẫn: “https://www.domain.com”  
